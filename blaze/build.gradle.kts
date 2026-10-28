@@ -1,7 +1,13 @@
+import java.util.Properties
+
 plugins {
   alias(libs.plugins.android.library)
   alias(libs.plugins.jetbrains.kotlin.android)
   id("maven-publish")
+}
+
+val localProperties = Properties().apply {
+  rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
 }
 
 android {
@@ -15,8 +21,18 @@ android {
     consumerProguardFiles("consumer-rules.pro")
   }
 
+  buildFeatures {
+    buildConfig = true
+  }
+
   buildTypes {
+    debug {
+      // Local Ostia for development: set blaze.devFrameUrl in local.properties
+      val devFrameUrl = localProperties.getProperty("blaze.devFrameUrl")
+      buildConfigField("String", "DEV_FRAME_URL", devFrameUrl?.let { "\"$it\"" } ?: "null")
+    }
     release {
+      buildConfigField("String", "DEV_FRAME_URL", "null")
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
     }
@@ -37,6 +53,8 @@ android {
 dependencies {
   implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.appcompat)
+  testImplementation(libs.junit)
+  testImplementation(libs.json)
 }
 
 

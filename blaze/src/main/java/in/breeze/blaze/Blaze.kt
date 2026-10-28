@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.annotation.Keep
 import org.json.JSONObject
 import java.lang.ref.WeakReference
+import java.util.UUID
 
 
 typealias CallbackFn = (event: JSONObject) -> Unit;
@@ -15,6 +16,29 @@ class Blaze {
   private var contextRef: WeakReference<Activity>? = null;
   private var callbackFn: CallbackFn? = null;
   private var isInitialized: Boolean = false;
+  private var configuration: BlazeConfiguration? = null
+
+  @Synchronized
+  fun initiate(context: Activity, configuration: BlazeConfiguration, callbackFn: CallbackFn) {
+    val validated = configuration.validated()
+    if (isInitialized) {
+      if (validated == this.configuration) {
+        return
+      }
+      throw BlazeConfigurationException(
+        "configuration",
+        "Blaze is already initiated with a different configuration; call terminate() first"
+      )
+    }
+    this.contextRef = WeakReference(context)
+    this.callbackFn = callbackFn
+    this.configuration = validated
+    val initiatePayload = validated.toInitiatePayload(UUID.randomUUID().toString())
+    context.runOnUiThread {
+      this.webView = BlazeWebView(context, initiatePayload, callbackFn, validated.frameUrl())
+    }
+    this.isInitialized = true
+  }
 
   fun initiate(context: Activity, initiatePayload: JSONObject, callbackFn: CallbackFn) {
     this.contextRef = WeakReference(context)
@@ -36,9 +60,11 @@ class Blaze {
 
   }
 
+  @Synchronized
   fun terminate() {
     this.webView?.terminate()
     webView = null
+    configuration = null
     callbackFn = null
     contextRef?.clear()
     contextRef = null

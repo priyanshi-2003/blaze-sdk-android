@@ -30,7 +30,8 @@ internal class BlazeWebView @SuppressLint(
 ) constructor(
   context: Activity,
   private val initiatePayload: JSONObject,
-  private val callbackFn: CallbackFn
+  private val callbackFn: CallbackFn,
+  private val frameUrl: String? = null
 ) {
 
   private val contextRef: WeakReference<Activity> = WeakReference(context)
@@ -39,7 +40,7 @@ internal class BlazeWebView @SuppressLint(
   private var consumingBackPress: Boolean = false
   private var eventQueue: HashMap<String, JSONObject> = hashMapOf()
   private val sharedPreferences: SharedPreferences
-  private var baseUrl: String = getBaseUrl(initiatePayload)
+  private var baseUrl: String = frameUrl ?: getBaseUrl(initiatePayload)
   private val frameLoadTarget: AtomicReference<BlazeWebView?> = AtomicReference(this)
 
   private val blazeWebViewClient = object : WebViewClient() {
@@ -76,6 +77,11 @@ internal class BlazeWebView @SuppressLint(
   }
 
   private fun loadFrame(context: Activity) {
+    val url = BuildConfig.DEV_FRAME_URL ?: frameUrl
+    if (url != null) {
+      frameLoadTarget.getAndSet(null)?.renderFrame(url)
+      return
+    }
     val target = frameLoadTarget
     BlazeConfig.resolveFrameUrl(
       context,
